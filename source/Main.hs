@@ -16,7 +16,6 @@
 module Main(main) where
 
 import Data.WeightedGraph
-import Parser.RawTransformer
 import Parser.GraphLoader
 import System.Environment
 import UU.PPrint
@@ -42,13 +41,11 @@ graph2 = graphFromEdges [
 
 -- main = putDoc $ pretty (graphMerge graph1 graph2)
 
-main = do
-    args <- getArgs
-    transformRaw (args !! 0) (args !! 1)
+--main = do
+--    args <- getArgs
+--    transformRaw (args !! 0) (args !! 1)
 
-{-
 main = do
     args <- getArgs
     graph <- loadGraphFromSCV $ args !! 0
     putDoc $ pretty graph
--}

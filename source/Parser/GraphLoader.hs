@@ -1,3 +1,4 @@
+{-# LANGUAGE DoAndIfThenElse #-}
 -- Copyright 2013 Gushcha Anton 
 -- This file is part of PowerCom.
 --
@@ -18,17 +19,67 @@ module Parser.GraphLoader(
     ) where
 
 import Data.WeightedGraph
-import Data.Functor
-import Data.Char
+import Text.Parsec
+import Text.Parsec.Extra 
+import Data.Text
+import Data.Functor ((<$>))
+import Debug.Trace (trace)
 
+type CSVParser a = Parsec String Char a
 
+csv :: CSVParser [(String, String, Int)]
+csv = do
+  result <- many line
+  eof
+  return result 
+
+line :: CSVParser (String, String, Int)
+line = do
+  result <- cells
+  eol
+  return result 
+
+firstCell :: CSVParser String
+firstCell = manyTill anyChar tab
+
+secondCell :: CSVParser String
+secondCell = manyTill anyChar (char ',')
+  
+parseInnerCell :: CSVParser (String, Int)
+parseInnerCell = do
+  body <- manyTill anyChar $ try $ do
+    char '('
+    notFollowedBy (noneOf "0123456789") 
+  
+  vals <- many Text.Parsec.digit
+  let val = read vals
+  _ <- char ')'
+  _ <- optional (char '*')
+  return (body, val)
+  
+cells :: CSVParser (String, String, Int)
+cells = do
+  first  <- firstCell
+  second <- secondCell
+  _ <- tab
+  third  <- secondCell
+  if second == "()" then
+    case runParser parseInnerCell ' ' "" third of
+      Right (second', val) -> return (first, second', val)
+      Left err -> fail $ show err
+  else if third == "()" then
+    case runParser parseInnerCell ' ' "" second of
+      Right (second', val) -> return (first, second', val)
+      Left err -> fail $ show err 
+  else fail "Unexpected format!" 
+  
 loadGraphFromSCV :: FilePath -> IO (Graph String Int)
-loadGraphFromSCV fileName = foldl graphAddEdge emptyGraph . map parseEdge <$> lines <$> readFile fileName
-    where 
-        parseEdge :: String -> (String, String, Int)
-        parseEdge s = (from, to, weight)
-            where
-                tab = chr 9
-                (from, s') = break (== tab) s 
-                (to, s'') = break (== tab) $ tail s'
-                weight = read $ tail s''
+loadGraphFromSCV fileName = do
+  raws <- getRaws
+  return $ Prelude.foldl graphAddEdge emptyGraph raws
+  where
+    getRaws = do
+      res <- runParser csv ' ' "" <$> readFile fileName 
+      case res of
+        Right vals -> return vals
+        Left err -> fail $ show err

@@ -30,7 +30,7 @@ data Graph vertexMark edgeMark = Graph (Map.Map vertexMark (Map.Map vertexMark e
 instance (Pretty vertexMark, Pretty edgeMark) => Pretty (Graph vertexMark edgeMark) where
     pretty graph = foldl showVertex (string "Graph:\n") $ graphEdges graph
         where
-            showVertex ss (from, to, weight) = ss <+> (pretty from) <+> string " -> " <+> (pretty to) <+> string " : " <+> (pretty weight) <+> string "\n"
+            showVertex ss (from, to, weight) = ss <+> pretty from <+> string " -> " <+> pretty to <+> string " : " <+> pretty weight <+> string "\n"
 
 instance (Eq vertexMark, Eq edgeMark) => Eq (Graph vertexMark edgeMark) where
     (==) (Graph mapA) (Graph mapB) = mapA == mapB  
@@ -42,19 +42,19 @@ graphEdges :: Graph vertexMark edgeMark -> [(vertexMark, vertexMark, edgeMark)]
 graphEdges (Graph vertMap) = Map.foldrWithKey iterateVertecies [] vertMap
     where
         iterateVertecies :: vertexMark -> Map.Map vertexMark edgeMark -> [(vertexMark, vertexMark, edgeMark)] -> [(vertexMark, vertexMark, edgeMark)]
-        iterateVertecies from vertexMap acc = (map (\(to, weight) -> (from, to, weight)) $ Map.assocs vertexMap) ++ acc
+        iterateVertecies from vertexMap = ((map (\(to, weight) -> (from, to, weight)) $ Map.assocs vertexMap) ++)
 
 graphFromEdges :: (Ord vertexMark, Num edgeMark) => [(vertexMark, vertexMark, edgeMark)] -> Graph vertexMark edgeMark
-graphFromEdges edges = foldl graphAddEdge emptyGraph edges
+graphFromEdges = foldl graphAddEdge emptyGraph
         
 graphAddEdge :: (Ord vertexMark, Num edgeMark) => Graph vertexMark edgeMark -> (vertexMark, vertexMark, edgeMark) -> Graph vertexMark edgeMark
-graphAddEdge (Graph vertMap) (from, to, weight) = case Map.member from vertMap of 
-    False -> Graph $ Map.insert from (Map.singleton to weight) vertMap
-    True  -> Graph $ Map.insert from newFromMap vertMap
+graphAddEdge (Graph vertMap) (from, to, weight) = Graph $ if Map.member from vertMap 
+    then Map.insert from newFromMap vertMap
+    else Map.insert from (Map.singleton to weight) vertMap
     where
-        newFromMap = case Map.member to fromMap of
-            False -> Map.insert to weight fromMap
-            True  -> Map.adjust (+ weight) to fromMap
+        newFromMap = if Map.member to fromMap
+          then Map.adjust (+ weight) to fromMap
+          else Map.insert to weight fromMap    
         fromMap   = vertMap Map.! from
 
 graphMerge :: (Ord vertexMark, Num edgeMark) => Graph vertexMark edgeMark -> Graph vertexMark edgeMark -> Graph vertexMark edgeMark
